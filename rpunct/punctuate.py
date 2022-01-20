@@ -3,26 +3,27 @@
 
 __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
-
+import torch
 import logging
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
 
 class RestorePuncts:
-    def __init__(self, wrds_per_pred=250):
+    def __init__(self, wrds_per_pred=250, use_cuda: bool = torch.cuda.is_available()):
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
-        self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+        self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U',
+                             '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
         self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
-                              args={"silent": True, "max_seq_length": 512})
+                              args={"silent": True, "max_seq_length": 512}, use_cuda=use_cuda)
 
-    def punctuate(self, text: str, lang:str=''):
+    def punctuate(self, text: str, lang: str = ''):
         """
         Performs punctuation restoration on arbitrarily large text.
         Detects if input is not English, if non-English was detected terminates predictions.
         Overrride by supplying `lang='en'`
-        
+
         Args:
             - text (str): Text to punctuate, can be few words to as large as you want.
             - lang (str): Explicit language of input text.
@@ -35,7 +36,8 @@ class RestorePuncts:
             Punctuate received: {text}""")
 
         # plit up large text into bert digestable chunks
-        splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
+        splits = self.split_on_toks(
+            text, self.wrds_per_pred, self.overlap_wrds)
         # predict slices
         # full_preds_lst contains tuple of labels and logits
         full_preds_lst = [self.predict(i['text']) for i in splits]
@@ -157,7 +159,7 @@ class RestorePuncts:
 if __name__ == "__main__":
     punct_model = RestorePuncts()
     # read test file
-    with open('../tests/sample_text.txt', 'r') as fp:
+    with open('../tests/sample_text.txt', 'r', encoding="utf8") as fp:
         test_sample = fp.read()
     # predict text and print
     punctuated = punct_model.punctuate(test_sample)
